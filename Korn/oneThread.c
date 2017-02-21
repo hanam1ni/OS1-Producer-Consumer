@@ -7,34 +7,53 @@ char buffer[1000];
 int head = 0,tail = 0;
 
 
-// add_item
+/*
+Coding by MrNonz
+This is version 1.0
+Lang C++
+*/
+#include <stdio.h>
+#include <pthread.h>
+
+#define buffer_size 1000
+#define producer_size 20
+#define consumer_size 30
+#define request_size 100000
+typedef struct thread_data
+{
+    int head;
+    int tail;
+    char data_list[buffer_size];
+}thread_data;
+
+//function prototype
+void initial_buffet(thread_data *);
+
+thread_data circular_queue;
+
 void add_item(){
+    circular_queue.data_list[circular_queue.head] = 'a';
 
-    buffer[head] = 'a';
-
-    if(head+1 == MAX){
-        head = 0;
+    if(circular_queue.data_list[circular_queue.head]+1 == buffer_size){
+        circular_queue.head = 0;
     }else{
-        head++;
+        circular_queue.head++;
     }
-    printf("add\ta head : %d // tail : %d\n",head,tail);
+    printf("add\ta head : %d // tail : %d\n",circular_queue.head,circular_queue.tail);
 }
-
-// add_item
 void remove_item(){
-    char ret = buffer[tail];
+    char ret = circular_queue.data_list[circular_queue.tail];
 
-    if(tail+1 == MAX){
-        tail = 0;
+    if(circular_queue.tail+1 == buffer_size){
+        circular_queue.tail = 0;
     }else{
-        tail++;
+        circular_queue.tail++;
     }
-
-    printf("remove\ta head : %d // tail : %d\n",head,tail);
+    printf("remove\ta head : %d // tail : %d\n",circular_queue.head,circular_queue.tail);
 }
 
 void *Append(){
-    if(head+1 == tail || (head+1 == MAX && tail == 0)){
+    if(circular_queue.head+1 == circular_queue.tail || (circular_queue.head+1 == buffer_size && circular_queue.tail == 0)){
         printf("cannot add q is full\n");
     }else{
         add_item();
@@ -42,16 +61,51 @@ void *Append(){
 }
 
 void *Remove(){
-    if(head == tail){
+    if(circular_queue.head == circular_queue.tail){
         printf("cannot remove q is empty\n");
     }else{
         remove_item();
     }
 }
 
-void main(){
+int main()
+{
+    //define Producer and Consumer threads
+    pthread_t producer_threads[producer_size];
+    pthread_t consumer_threads[consumer_size];
 
+    printf("Producers %d, Consumers %d\n", producer_size, consumer_size);
+    printf("Buffer size %d\n", buffer_size);
+    printf("Requests %d\n", request_size);
 
+    //set default value of circular_queue
+    initial_buffet(&circular_queue);
+
+    /*test Append and Remove*/
+    *Append();
+    *Append();
+    *Append();
+    *Remove();
+    *Remove();
+    *Append();
+    *Append();
+    *Remove();
+    *Append();
+    *Append();
+    *Remove();
+    *Append();
+    *Append();
+    *Remove();
+    *Remove();
+    *Append();
 
     return 0;
 }
+
+void initial_buffet(thread_data *temp_buffer)
+{
+    temp_buffer->head = 0;
+    temp_buffer->tail = 0;
+}
+
+
