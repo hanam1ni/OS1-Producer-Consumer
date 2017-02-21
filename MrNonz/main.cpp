@@ -123,6 +123,7 @@ void append_buffer(thread_data *temp_buffer, char temp_data)
         pthread_mutex_lock(&mutex_head);
         pthread_cond_signal(&head_threshold);
 
+        //add item to buffer
         add_item(temp_buffer, temp_data);
 
         pthread_mutex_unlock(&mutex_head);
@@ -144,4 +145,29 @@ void remove_buffer(thread_data *temp_buffer)
     then lock your Tail_mutex
     and call remove_item then unlock your Tail_mutex
     */
+
+    pthread_mutex_lock(&mutex_space_buffer);
+    pthread_cond_signal(&space_buffer_threshold);
+
+    printf("Received signal space_buffer\n");
+
+    //Check buffer is Empty !!
+    if (temp_buffer->space_buffer != buffer_size)
+    {
+        pthread_mutex_lock(&mutex_tail);
+        pthread_cond_signal(&tail_threshold);
+
+        //remove item from buffer
+        remove_item(temp_buffer);
+
+        pthread_mutex_unlock(&mutex_tail);
+
+        printf("Remove item is success\n");
+    } else {
+        printf("Fail to remove item %ld\n", temp_buffer->space_buffer);
+    }
+
+    //increase space of buffer
+    temp_buffer->space_buffer++;
+    pthread_mutex_unlock(&mutex_space_buffer);
 }
