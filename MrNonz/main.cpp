@@ -14,8 +14,8 @@ Lang C++
 
 typedef struct thread_data
 {
-    int head;
-    int tail;
+    long head;
+    long tail;
     long space_buffer;
     char data_list[buffer_size];
 }thread_data;
@@ -32,6 +32,9 @@ void* remove_buffer(void*);
 thread_data circular_queue;
 pthread_mutex_t mutex_head, mutex_tail, mutex_space_buffer;
 pthread_cond_t head_threshold, tail_threshold, space_buffer_threshold;
+
+long temp_request_size = request_size;
+long fails_request = 0;
 
 int main()
 {
@@ -109,6 +112,10 @@ int main()
     pthread_cond_destroy(&tail_threshold);
     pthread_cond_destroy(&space_buffer_threshold);
     //pthread_exit(NULL);
+
+    long success_request = request_size - fails_request;
+    printf("Successfully consumed %ld requests (%.2lf%)", success_request, (double)(success_request*100)/request_size);
+
     return 0;
 }
 
@@ -149,32 +156,36 @@ void* append_buffer(void* temp_data)
     then lock your Head_mutex
     and call add_item then unlock your Head_mutex
     */
-    pthread_mutex_lock(&mutex_space_buffer);
-    pthread_cond_signal(&space_buffer_threshold);
+    while(temp_request_size > 0) {
+        pthread_mutex_lock(&mutex_space_buffer);
+        pthread_cond_signal(&space_buffer_threshold);
 
-    //printf("Received signal space_buffer\n");
+        //printf("Received signal space_buffer\n");
 
-    //Check buffer is not Full !!
-    if (circular_queue.space_buffer != 0)
-    {
-        pthread_mutex_lock(&mutex_head);
-        pthread_cond_signal(&head_threshold);
+        //Check buffer is not Full !!
+        if (circular_queue.space_buffer != 0)
+        {
+            pthread_mutex_lock(&mutex_head);
+            pthread_cond_signal(&head_threshold);
 
-        //add item to buffer
-        add_item(temp_data);
+            //add item to buffer
+            add_item(temp_data);
 
-        pthread_mutex_unlock(&mutex_head);
+            pthread_mutex_unlock(&mutex_head);
 
-        //decrease space of buffer
-        circular_queue.space_buffer--;
+            //decrease space of buffer
+            circular_queue.space_buffer--;
 
-        printf("Add item is success\n");
-    } else {
-        printf("Fail to add item\n");
+            //printf("Add item is success\n");
+        } else {
+            //printf("Fail to add item\n");
+            fails_request++;
+        }
+
+        pthread_mutex_unlock(&mutex_space_buffer);
+        //pthread_exit(NULL);
+        temp_request_size--;
     }
-
-    pthread_mutex_unlock(&mutex_space_buffer);
-    //pthread_exit(NULL);
 }
 
 void* remove_buffer(void* temp_queue)
@@ -184,31 +195,34 @@ void* remove_buffer(void* temp_queue)
     then lock your Tail_mutex
     and call remove_item then unlock your Tail_mutex
     */
+    while(temp_request_size > 0) {
+        pthread_mutex_lock(&mutex_space_buffer);
+        pthread_cond_signal(&space_buffer_threshold);
 
-    pthread_mutex_lock(&mutex_space_buffer);
-    pthread_cond_signal(&space_buffer_threshold);
+        //printf("Received signal space_buffer\n");
 
-    //printf("Received signal space_buffer\n");
+        //Check buffer is Empty !!
+        if (circular_queue.space_buffer < buffer_size)
+        {
+            pthread_mutex_lock(&mutex_tail);
+            pthread_cond_signal(&tail_threshold);
 
-    //Check buffer is Empty !!
-    if (circular_queue.space_buffer < buffer_size)
-    {
-        pthread_mutex_lock(&mutex_tail);
-        pthread_cond_signal(&tail_threshold);
+            //remove item from buffer
+            remove_item();
 
-        //remove item from buffer
-        remove_item();
+            pthread_mutex_unlock(&mutex_tail);
 
-        pthread_mutex_unlock(&mutex_tail);
+            //increase space of buffer
+            circular_queue.space_buffer++;
 
-        //increase space of buffer
-        circular_queue.space_buffer++;
+            //printf("Remove item is success\n");
+        } else {
+            //printf("Fail to remove item %ld\n", circular_queue.space_buffer);
+            fails_request++;
+        }
 
-        printf("Remove item is success\n");
-    } else {
-        printf("Fail to remove item %ld\n", circular_queue.space_buffer);
+        pthread_mutex_unlock(&mutex_space_buffer);
+        //pthread_exit(NULL);
+        temp_request_size--;
     }
-
-    pthread_mutex_unlock(&mutex_space_buffer);
-    //pthread_exit(NULL);
 }
