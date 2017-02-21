@@ -5,6 +5,7 @@ Lang C++
 */
 #include <stdio.h>
 #include <pthread.h>
+#include <cstdlib>
 
 #define buffer_size 1000
 #define producer_size 20
@@ -20,13 +21,13 @@ typedef struct thread_data
 }thread_data;
 
 //function prototype
-void initial_buffer(thread_data *);
+void initial_buffer();
 
-void add_item(thread_data *, char);
-void remove_item(thread_data *);
+void add_item(void*);
+void remove_item();
 
-void append_buffer(thread_data *, char);
-void remove_buffer(thread_data *);
+void* append_buffer(void*);
+void* remove_buffer(void*);
 
 thread_data circular_queue;
 pthread_mutex_t mutex_head, mutex_tail, mutex_space_buffer;
@@ -34,6 +35,12 @@ pthread_cond_t head_threshold, tail_threshold, space_buffer_threshold;
 
 int main()
 {
+    int i, return_code;
+    char *temp_char_data = (char*)malloc(sizeof(*temp_char_data));
+    *temp_char_data = 'a';
+    pthread_t threads_append[producer_size];
+    pthread_t threads_remove[consumer_size];
+
     //Initialize mutex&condition objects
     pthread_mutex_init(&mutex_head, NULL);
     pthread_mutex_init(&mutex_tail, NULL);
@@ -51,7 +58,7 @@ int main()
     printf("Requests %d\n\n", request_size);
 
     //set default value of circular_queue
-    initial_buffer(&circular_queue);
+    initial_buffer();
 
     /*
     add_item(&circular_queue, 'a');
@@ -60,52 +67,82 @@ int main()
 
     printf("Last head and tail address is %d %d", circular_queue.head, circular_queue.tail);
     */
-    append_buffer(&circular_queue, 'a');
-    append_buffer(&circular_queue, 'b');
-    append_buffer(&circular_queue, 'c');
-    remove_buffer(&circular_queue);
+
+    //create thread for append and remove
+    /*append_buffer('a');
+    append_buffer('b');
+    append_buffer('c');
+    remove_buffer();*/
+    for (i = 0; i < producer_size; i++)
+    {
+        return_code = pthread_create(&threads_append[i], NULL, append_buffer, temp_char_data);
+
+        if (return_code){
+          printf("Producer; return code from pthread_create() is %d\n", return_code);
+       }
+    }
+    for (i = 0; i <consumer_size; i++)
+    {
+        return_code = pthread_create(&threads_remove[i], NULL, remove_buffer, &circular_queue);
+
+        if (return_code){
+          printf("Consumer; return code from pthread_create() is %d\n", return_code);
+       }
+    }
+
+    // Waiting all of threads completed
+    for (i=0; i < producer_size; i++)
+    {
+        pthread_join(threads_append[i], NULL);
+    }
+    for (i=0; i < consumer_size; i++)
+    {
+        pthread_join(threads_remove[i], NULL);
+    }
 
 
     // Clean up all of pthread.h lib and exit
     pthread_mutex_destroy(&mutex_head);
     pthread_mutex_destroy(&mutex_tail);
+    pthread_mutex_destroy(&mutex_space_buffer);
     pthread_cond_destroy(&head_threshold);
     pthread_cond_destroy(&tail_threshold);
+    pthread_cond_destroy(&space_buffer_threshold);
     //pthread_exit(NULL);
     return 0;
 }
 
-void initial_buffer(thread_data *temp_buffer)
+void initial_buffer()
 {
     // -1 is mean not data in buffer and not even insert data
-    temp_buffer->head = 0;
-    temp_buffer->tail = 0;
-    temp_buffer->space_buffer = buffer_size;
+    circular_queue.head = 0;
+    circular_queue.tail = 0;
+    circular_queue.space_buffer = buffer_size;
 }
 
-void add_item(thread_data *temp_buffer, char temp_data)
+void add_item(void* temp_data)
 {
     //Make sure you locked of Head
-    temp_buffer->data_list[temp_buffer->head++] = temp_data;
+    circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
 
-    if (temp_buffer->head == buffer_size)
+    if (circular_queue.head == buffer_size)
     {
-        temp_buffer->head = 0;
+        circular_queue.head = 0;
     }
 }
 
-void remove_item(thread_data *temp_buffer)
+void remove_item()
 {
     //Make sure you locked of Tail
-    temp_buffer->tail++;
+    circular_queue.tail++;
 
-    if (temp_buffer->tail == buffer_size)
+    if (circular_queue.tail == buffer_size)
     {
-        temp_buffer->tail = 0;
+        circular_queue.tail = 0;
     }
 }
 
-void append_buffer(thread_data *temp_buffer, char temp_data)
+void* append_buffer(void* temp_data)
 {
     /*
     Check your buffer is not Full !!
@@ -115,30 +152,32 @@ void append_buffer(thread_data *temp_buffer, char temp_data)
     pthread_mutex_lock(&mutex_space_buffer);
     pthread_cond_signal(&space_buffer_threshold);
 
-    printf("Received signal space_buffer\n");
+    //printf("Received signal space_buffer\n");
 
     //Check buffer is not Full !!
-    if (temp_buffer->space_buffer != 0)
+    if (circular_queue.space_buffer != 0)
     {
         pthread_mutex_lock(&mutex_head);
         pthread_cond_signal(&head_threshold);
 
         //add item to buffer
-        add_item(temp_buffer, temp_data);
+        add_item(temp_data);
 
         pthread_mutex_unlock(&mutex_head);
+
+        //decrease space of buffer
+        circular_queue.space_buffer--;
 
         printf("Add item is success\n");
     } else {
         printf("Fail to add item\n");
     }
 
-    //decrease space of buffer
-    temp_buffer->space_buffer--;
     pthread_mutex_unlock(&mutex_space_buffer);
+    //pthread_exit(NULL);
 }
 
-void remove_buffer(thread_data *temp_buffer)
+void* remove_buffer(void* temp_queue)
 {
     /*
     Check your buffer is not Empty !!
@@ -149,25 +188,27 @@ void remove_buffer(thread_data *temp_buffer)
     pthread_mutex_lock(&mutex_space_buffer);
     pthread_cond_signal(&space_buffer_threshold);
 
-    printf("Received signal space_buffer\n");
+    //printf("Received signal space_buffer\n");
 
     //Check buffer is Empty !!
-    if (temp_buffer->space_buffer != buffer_size)
+    if (circular_queue.space_buffer < buffer_size)
     {
         pthread_mutex_lock(&mutex_tail);
         pthread_cond_signal(&tail_threshold);
 
         //remove item from buffer
-        remove_item(temp_buffer);
+        remove_item();
 
         pthread_mutex_unlock(&mutex_tail);
 
+        //increase space of buffer
+        circular_queue.space_buffer++;
+
         printf("Remove item is success\n");
     } else {
-        printf("Fail to remove item %ld\n", temp_buffer->space_buffer);
+        printf("Fail to remove item %ld\n", circular_queue.space_buffer);
     }
 
-    //increase space of buffer
-    temp_buffer->space_buffer++;
     pthread_mutex_unlock(&mutex_space_buffer);
+    //pthread_exit(NULL);
 }
