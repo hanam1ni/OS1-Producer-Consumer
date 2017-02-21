@@ -31,7 +31,10 @@ void initial_buffet(thread_data *);
 
 thread_data circular_queue;
 
+//define pthread
 pthread_t producer,consumer;
+//define mutex variable
+pthread_mutex_t mutex_t;
 
 void add_item(int tid){
     circular_queue.data_list[circular_queue.head] = 'a';
@@ -54,21 +57,27 @@ void remove_item(int tid){
 }
 
 void *Append(void *threadid){
+    pthread_mutex_lock (&mutex_t);
     int tid = (int)threadid;
     if(circular_queue.head+1 == circular_queue.tail || (circular_queue.head+1 == buffer_size && circular_queue.tail == 0)){
         printf("cannot add q is full\n");
     }else{
         add_item(tid);
     }
+    pthread_mutex_unlock(&mutex_t);
+    pthread_exit(NULL);
 }
 
 void *Remove(void *threadid){
+    pthread_mutex_lock (&mutex_t);
     int tid = (int)threadid;
     if(circular_queue.head == circular_queue.tail){
         printf("cannot remove q is empty\n");
     }else{
         remove_item(tid);
     }
+    pthread_mutex_unlock(&mutex_t);
+    pthread_exit(NULL);
 }
 
 int main()
