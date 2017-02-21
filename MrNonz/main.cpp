@@ -15,6 +15,7 @@ typedef struct thread_data
 {
     int head;
     int tail;
+    long space_buffer;
     char data_list[buffer_size];
 }thread_data;
 
@@ -28,16 +29,18 @@ void append_buffer(thread_data *, char);
 void remove_buffer(thread_data *);
 
 thread_data circular_queue;
-pthread_mutex_t mutex_head, mutex_tail;
-pthread_cond_t head_threshold, tail_threshold;
+pthread_mutex_t mutex_head, mutex_tail, mutex_space_buffer;
+pthread_cond_t head_threshold, tail_threshold, space_buffer_threshold;
 
 int main()
 {
     //Initialize mutex&condition objects
     pthread_mutex_init(&mutex_head, NULL);
     pthread_mutex_init(&mutex_tail, NULL);
+    pthread_mutex_init(&mutex_space_buffer, NULL);
     pthread_cond_init (&head_threshold, NULL);
     pthread_cond_init (&tail_threshold, NULL);
+    pthread_cond_init (&space_buffer_threshold, NULL);
 
     //define Producer and Consumer threads
     pthread_t producer_threads[producer_size];
@@ -45,7 +48,7 @@ int main()
 
     printf("Producers %d, Consumers %d\n", producer_size, consumer_size);
     printf("Buffer size %d\n", buffer_size);
-    printf("Requests %d\n", request_size);
+    printf("Requests %d\n\n", request_size);
 
     //set default value of circular_queue
     initial_buffer(&circular_queue);
@@ -58,6 +61,8 @@ int main()
     printf("Last head and tail address is %d %d", circular_queue.head, circular_queue.tail);
     */
     append_buffer(&circular_queue, 'a');
+    append_buffer(&circular_queue, 'b');
+    append_buffer(&circular_queue, 'c');
     remove_buffer(&circular_queue);
 
 
@@ -72,8 +77,10 @@ int main()
 
 void initial_buffer(thread_data *temp_buffer)
 {
+    // -1 is mean not data in buffer and not even insert data
     temp_buffer->head = 0;
     temp_buffer->tail = 0;
+    temp_buffer->space_buffer = buffer_size;
 }
 
 void add_item(thread_data *temp_buffer, char temp_data)
@@ -105,7 +112,29 @@ void append_buffer(thread_data *temp_buffer, char temp_data)
     then lock your Head_mutex
     and call add_item then unlock your Head_mutex
     */
+    pthread_mutex_lock(&mutex_space_buffer);
+    pthread_cond_signal(&space_buffer_threshold);
 
+    printf("Received signal space_buffer\n");
+
+    //Check buffer is not Full !!
+    if (temp_buffer->space_buffer != 0)
+    {
+        pthread_mutex_lock(&mutex_head);
+        pthread_cond_signal(&head_threshold);
+
+        add_item(temp_buffer, temp_data);
+
+        pthread_mutex_unlock(&mutex_head);
+
+        printf("Add item is success\n");
+    } else {
+        printf("Fail to add item\n");
+    }
+
+    //decrease space of buffer
+    temp_buffer->space_buffer--;
+    pthread_mutex_unlock(&mutex_space_buffer);
 }
 
 void remove_buffer(thread_data *temp_buffer)
