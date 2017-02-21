@@ -28,10 +28,17 @@ void append_buffer(thread_data *, char);
 void remove_buffer(thread_data *);
 
 thread_data circular_queue;
-pthread_mutex_t lock_head, lock_tail;
+pthread_mutex_t mutex_head, mutex_tail;
+pthread_cond_t head_threshold, tail_threshold;
 
 int main()
 {
+    //Initialize mutex&condition objects
+    pthread_mutex_init(&mutex_head, NULL);
+    pthread_mutex_init(&mutex_tail, NULL);
+    pthread_cond_init (&head_threshold, NULL);
+    pthread_cond_init (&tail_threshold, NULL);
+
     //define Producer and Consumer threads
     pthread_t producer_threads[producer_size];
     pthread_t consumer_threads[consumer_size];
@@ -52,6 +59,14 @@ int main()
     */
     append_buffer(&circular_queue, 'a');
     remove_buffer(&circular_queue);
+
+
+    // Clean up all of pthread.h lib and exit
+    pthread_mutex_destroy(&mutex_head);
+    pthread_mutex_destroy(&mutex_tail);
+    pthread_cond_destroy(&head_threshold);
+    pthread_cond_destroy(&tail_threshold);
+    //pthread_exit(NULL);
     return 0;
 }
 
@@ -85,10 +100,19 @@ void remove_item(thread_data *temp_buffer)
 
 void append_buffer(thread_data *temp_buffer, char temp_data)
 {
+    /*
+    Check your buffer is not Full !!
+    then lock your Head_mutex
+    and call add_item then unlock your Head_mutex
+    */
 
 }
 
 void remove_buffer(thread_data *temp_buffer)
 {
-
+    /*
+    Check your buffer is not Empty !!
+    then lock your Tail_mutex
+    and call remove_item then unlock your Tail_mutex
+    */
 }
