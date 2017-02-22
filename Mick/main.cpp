@@ -6,10 +6,10 @@
 #include <windows.h>
 
 #define buffer_size 1000
-#define producer_size 40
-#define consumer_size 60
-#define request_size 100000000
-#define NUM_TRY 10
+#define producer_size 20
+#define consumer_size 30
+#define request_size 1000000000
+#define NUM_TRY 20
 
 typedef struct thread_data
 {
@@ -37,7 +37,8 @@ long fails_request = 0;
 
 char template_data[500];
 int num = 0;
-
+long num_a = 0;
+long num_r = 0;
 int main()
 {
 
@@ -115,8 +116,10 @@ int main()
     pthread_mutex_destroy(&mutex_op);
 
     long success_request = request_size - fails_request;
-    printf("Successfully consumed %ld requests (%.2lf%%)", success_request, (double)(success_request)*100/(double)request_size);
-
+    double throughput = (success_request)/(double)(elapsed/1000.0);
+    printf("Successfully consumed \t:\t %ld \trequests (%.2lf%%)\n", success_request, (double)(success_request)*100/(double)request_size);
+    printf("\tThroughput \t:\t %.2lf \tSuccessful Request/s", throughput);
+    printf("\nAppend: %ld , Remove: %ld",num_a,num_r);
     return 0;
 }
 
@@ -159,8 +162,8 @@ void* append_buffer(void* temp_data)
     		//printf("Try Append\n");
 	        if (circular_queue.head - circular_queue.tail != -1 || circular_queue.head - circular_queue.tail != buffer_size - 1)
 	        {
-                /*num++;
-	            printf("add, %d\n", num);
+                num_a++;
+	            /*printf("add, %d\n", num);
 	            printf("Append Success\n");*/
 	            add_item(temp_data);
 	            pthread_mutex_unlock(&mutex_op);
@@ -191,8 +194,8 @@ void* remove_buffer(void* temp_queue)
     		//printf("Try Remove\n");
 	        if (circular_queue.head != circular_queue.tail)
 	        {
-	            /*num--;
-	            printf("remove, %d\n", num);
+	            num_r++;
+	            /*printf("remove, %d\n", num);
 	            printf("Remove Success \n");*/
 	            remove_item();
 	            pthread_mutex_unlock(&mutex_op);
