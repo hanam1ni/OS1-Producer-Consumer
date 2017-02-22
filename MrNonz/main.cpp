@@ -8,7 +8,7 @@
 #define buffer_size 1000
 #define producer_size 20
 #define consumer_size 30
-#define request_size 1000000
+#define request_size 10000000
 #define NUM_TRY 3
 
 typedef struct thread_data
@@ -101,7 +101,6 @@ int main()
           printf("Consumer; return code from pthread_create() is %d\n", return_code);
        }
     }
-
     // Waiting all of threads completed
     for (i=0; i < producer_size; i++)
     {
@@ -142,30 +141,34 @@ void add_item(void* temp_data)
 {
     //Make sure you locked of Head
     //circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
+    pthread_mutex_lock(&mutex_head);
+
     circular_queue.head++;
     if (circular_queue.head == buffer_size)
     {
         circular_queue.head = 0;
     }
+    circular_queue.space_buffer--;
+    pthread_mutex_unlock(&mutex_head);
 }
 
 void remove_item()
 {
     //Make sure you locked of Tail
-    circular_queue.tail++;
+    pthread_mutex_lock(&mutex_tail);
 
+    circular_queue.tail++;
     if (circular_queue.tail == buffer_size)
     {
         circular_queue.tail = 0;
     }
+    circular_queue.space_buffer++;
+    pthread_mutex_unlock(&mutex_tail);
 }
 
 void* append_buffer(void* temp_data)
 {
-	int try_n = 0;
     while(temp_request_size-- > 0) {
-    	while(try_n < NUM_TRY){
-    		pthread_mutex_lock(&mutex_head);
     		// CheckBuffer is not Full
     		//printf("Try Append\n");
 	        if (circular_queue.space_buffer != 0)
@@ -174,30 +177,17 @@ void* append_buffer(void* temp_data)
 	            //printf("add, %d\n", num);
 	            //printf("Append Success %d\n",temp_request_size);
 	            add_item(temp_data);
-	            circular_queue.space_buffer--;
-	            pthread_mutex_unlock(&mutex_head);
-	            break;
 	        } else {
 	            //printf("Append Failed Halt %d\n",temp_request_size);
-	        	pthread_mutex_unlock(&mutex_head);
-	            Sleep(try_n);
-	            try_n++;
+	            fails_request++;
 	        }
-     	}
-     	if(try_n == NUM_TRY){
-     		fails_request++;
-     	}
-        try_n = 0;
     }
     pthread_exit(NULL);
 }
 
 void* remove_buffer(void* temp_queue)
 {
-	int try_n = 0;
     while(temp_request_size-- > 0) {
-    	while(try_n < NUM_TRY){
-    		pthread_mutex_lock(&mutex_tail);
 
     		// Check Buffer is not Empty
     		//printf("Try Remove\n");
@@ -207,20 +197,10 @@ void* remove_buffer(void* temp_queue)
 	            /*printf("remove, %d\n", num);*/
 	            //printf("Remove Success %d\n",temp_request_size);
 	            remove_item();
-	            circular_queue.space_buffer++;
-	            pthread_mutex_unlock(&mutex_tail);
-	            break;
 	        } else {
 	            //printf("Remove Failed Halt %d\n",temp_request_size);
-	        	pthread_mutex_unlock(&mutex_tail);
-	            Sleep(try_n);
-	            try_n++;
+	            fails_request++;
 	        }
-     	}
-     	if(try_n == NUM_TRY){
-     		fails_request++;
-     	}
-     	try_n = 0;
      	//printf("%d\n",temp_request_size);
     }
     pthread_exit(NULL);
