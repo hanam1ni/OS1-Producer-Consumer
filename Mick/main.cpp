@@ -8,7 +8,7 @@
 #define buffer_size 1000
 #define producer_size 20
 #define consumer_size 30
-#define request_size 1000000000
+#define request_size 10000000000
 #define NUM_TRY 20
 
 typedef struct thread_data
@@ -175,10 +175,10 @@ void* append_buffer(void* temp_data)
 	            try_n++;
 	        }
      	}
-     	if(try_n == 5){
+     	if(try_n == NUM_TRY){
      		fails_request++;
      	}
-        pthread_mutex_unlock(&mutex_op);
+        try_n = 0;
         temp_request_size--;
     }
     pthread_exit(NULL);
@@ -207,9 +207,10 @@ void* remove_buffer(void* temp_queue)
 	            try_n++;
 	        }
      	}
-     	if(try_n == 5){
+     	if(try_n == NUM_TRY){
      		fails_request++;
      	}
+     	try_n = 0;
         temp_request_size--;
     }
     pthread_exit(NULL);
