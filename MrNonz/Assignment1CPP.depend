@@ -1,6 +1,8 @@
 # depslib dependency file v1.0
-1487709121 source:c:\users\mrnonz\documents\ce\3d\os\assignment1cpp\main.cpp
+1487795008 source:c:\users\mrnonz\documents\ce\3d\os\assignment1cpp\main.cpp
 	<stdio.h>
 	<pthread.h>
 	<cstdlib>
+	<time.h>
+	<windows.h>
 
