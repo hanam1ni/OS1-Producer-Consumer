@@ -9,7 +9,7 @@
 #define producer_size 20
 #define consumer_size 30
 #define request_size 10000000
-#define NUM_TRY 15
+#define NUM_TRY 1
 
 typedef struct thread_data
 {
@@ -110,16 +110,18 @@ int main()
     t2 = clock();
 
     elapsed = timediff(t1, t2);
-    printf("Elapsed: %ld ms\n", elapsed);
+    printf("Elapsed: %ld s\n", elapsed/1000);
 
     // Clean up all of pthread.h lib and exit
     pthread_mutex_destroy(&mutex_op);
 
     long success_request = request_size - fails_request;
     double throughput = (success_request)/(double)(elapsed/1000.0);
+
     printf("Successfully consumed \t:\t %ld \trequests (%.2lf%%)\n", success_request, (double)(success_request)*100/(double)request_size);
     printf("\tThroughput \t:\t %.2lf \tSuccessful Request/s", throughput);
     printf("\nAppend: %ld , Remove: %ld , Failed: %ld , Total Request: %ld",num_a,num_r,fails_request,num_a+num_r+fails_request);
+
     return 0;
 }
 
@@ -133,8 +135,8 @@ void initial_buffer()
 void add_item(void* temp_data)
 {
     //Make sure you locked of Head
-    circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
-
+    //circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
+    circular_queue.head++;
     if (circular_queue.head == buffer_size)
     {
         circular_queue.head = 0;
@@ -158,7 +160,6 @@ void* append_buffer(void* temp_data)
     while(temp_request_size-- > 0) {
     	while(try_n < NUM_TRY){
     		pthread_mutex_lock(&mutex_op);
-
     		// CheckBuffer is not Full
     		//printf("Try Append\n");
 	        if (circular_queue.head - circular_queue.tail != -1 || circular_queue.head - circular_queue.tail != buffer_size - 1)
