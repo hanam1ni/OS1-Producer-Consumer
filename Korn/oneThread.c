@@ -1,19 +1,6 @@
-#include<stdio.h>
-#define MAX 20
-#define CONSUMER 30
-#define PROCEDUCE 20
-
-char buffer[1000];
-int head = 0,tail = 0;
-
-
-/*
-Coding by MrNonz
-This is version 1.0
-Lang C++
-*/
 #include <stdio.h>
 #include <pthread.h>
+#include <time.h>
 
 #define buffer_size 1000
 #define producer_size 20
@@ -39,7 +26,7 @@ pthread_mutex_t mutex_t;
 void add_item(int tid){
     circular_queue.data_list[circular_queue.head] = 'a';
 
-    if(circular_queue.data_list[circular_queue.head]+1 == buffer_size){
+    if(circular_queue.head+1 == buffer_size){
         circular_queue.head = 0;
     }else{
         circular_queue.head++;
