@@ -10,7 +10,7 @@ typedef struct thread_data
     long head;
     long tail;
     long space_buffer;
-    char data_list[1000];
+    char data_list[1005];
 }thread_data;
 
 //Prototype
@@ -46,22 +46,11 @@ long request_size;
 
 int main(int argc, char *argv[])
 {
-    if( argc == 5 ) {
-      producer_size = atoi(argv[1]);
-      consumer_size = atoi(argv[2]);
-      buffer_size = atoi(argv[3]);
-      request_size = atol(argv[4]);
-      producer_num = producer_size;
-      temp_request_size = request_size;
-   }
-   else if( argc > 2 ) {
-      printf("Too many arguments.\n");
-      return 0;
-   }
-   else {
-      printf("Four argument expected.\n");
-      return 0;
-   }
+    printf("Insert your Producer, Consumer, Buffer, Request\n\n");
+    scanf("%d %d %d %ld", &producer_size, &consumer_size, &buffer_size, &request_size);
+
+    producer_num = producer_size;
+    temp_request_size = request_size;
 	printf("Initializing...\n");
 
     clock_t t1, t2;
