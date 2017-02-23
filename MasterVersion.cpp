@@ -131,9 +131,9 @@ int main()
     long success_request = request_size - fail_removed;
     double throughput = (success_removed)/(double)(elapsed/1000.0);
 
-    printf("\tSuccessfullly Consumed \t:\t %ld\n",success_removed);
+    printf("\tSuccessfullly Consumed \t:\t %ld (%.2lf%%)\n",success_removed,(double)(success_removed*100/request_size));
     printf("\t\tElapsed \t:\t %.2lf s\n", (double)elapsed/1000.0);
-    printf("\t\tThroughput \t:\t %.2lf \tSuccessful Request/s", throughput);
+    printf("\t\tThroughput \t:\t %.2lf \tSuccessful Request/s\n", throughput);
 
     return 0;
 }
