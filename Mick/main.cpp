@@ -8,7 +8,7 @@
 #define buffer_size 1000
 #define producer_size 20
 #define consumer_size 30
-#define request_size 100
+#define request_size 10000000
 #define WAIT_TIME_SECONDS       5
 
 typedef struct thread_data
@@ -172,37 +172,26 @@ void* append_buffer(void* temp_data)
     struct timespec   ts;
     struct timeval    tp;
     int return_code;
+    int try_time = 0;
     while(1) {
+        while(pthread_mutex_trylock(&mutex_producer) != 0){
+            try_time+=30;
+            Sleep(try_time);
+		}
     	// CheckBuffer is not Full
         //printf("Before Lock\n");
-		pthread_mutex_lock(&mutex_producer);
 		if(temp_request_size-- > 0){
 		    //printf("Try Append\n");
 			if (circular_queue.space_buffer > 0)
 		       {
-		           printf("Append Success %d\n",circular_queue.space_buffer);
+		           //printf("Append Success %d\n",temp_request_size);
 		           add_item(temp_data);
-                   pthread_cond_signal(&cond_not_empty);
 		           pthread_mutex_unlock(&mutex_producer);
 		           num_a++;
 		       } else {
-		            //printf("Append Failed Halt \n");
-		       		ts.tv_sec  = tp.tv_sec;
-				    ts.tv_nsec = tp.tv_usec * 1000;
-				    ts.tv_sec += WAIT_TIME_SECONDS;
-		           	//return_code = pthread_cond_timedwait(&cond_not_full, &mutex_producer, &ts);
-		           	pthread_cond_wait(&cond_not_full, &mutex_producer);
-		           	if(return_code == ETIMEDOUT){
-                        pthread_mutex_unlock(&mutex_producer);
-                        Sleep(50);
-		           	}else{
-		           	    printf("Append Try Success %d\n",circular_queue.space_buffer);
-                        add_item(temp_data);
-                        pthread_cond_signal(&cond_not_empty);
-                        pthread_mutex_unlock(&mutex_producer);
-                        num_a++;
-		           	}
+		          pthread_mutex_unlock(&mutex_producer);
 		       }
+		       try_time = 0;
 		}else{
 		    producer_num--;
 		    //printf("%d\n",producer_num);
@@ -218,41 +207,28 @@ void* remove_buffer(void* temp_queue)
     struct timespec   ts;
     struct timeval    tp;
     int return_code;
+    int try_time = 0;
     while(1){
+        while(pthread_mutex_trylock(&mutex_consumer) != 0){
+            try_time+=30;
+            Sleep(try_time);
+		}
     	// Check Buffer is not Empty
-    	pthread_mutex_lock(&mutex_consumer);
     	//printf("Lock\n");
     	if(producer_num > 0){
-    		if (circular_queue.space_buffer != buffer_size)
+    		if(circular_queue.space_buffer != buffer_size)
 	        {
-	            printf("Remove Success %d\n",circular_queue.space_buffer);
+	            //printf("Remove Success %d\n",temp_request_size);
 	            remove_item();
-                pthread_cond_signal(&cond_not_full);
 	            pthread_mutex_unlock(&mutex_consumer);
 	            num_r++;
-	        } else if(producer_num > 0){
-                ts.tv_sec  = tp.tv_sec;
-                ts.tv_nsec = tp.tv_usec * 1000;
-                ts.tv_sec += WAIT_TIME_SECONDS;
-                return_code = pthread_cond_timedwait(&cond_not_empty, &mutex_consumer, &ts);
-                pthread_cond_wait(&cond_not_empty, &mutex_consumer);
-                //printf("signal rcv\n");
-                if(return_code == ETIMEDOUT){
-                        //printf("Timeout \n");
-                        pthread_mutex_unlock(&mutex_consumer);
-                        fails_request++;
-                        Sleep(50);
-                }else{
-                        //printf("Remove \n");
-                        remove_item();
-                        pthread_cond_signal(&cond_not_full);
-                        pthread_mutex_unlock(&mutex_consumer);
-                        num_r++;
-                }
+	        }else{
+                pthread_mutex_unlock(&mutex_consumer);
 	        }
     	}else{
     		break;
     	}
+    	try_time = 0;
     }
     pthread_mutex_unlock(&mutex_consumer);
     consumer_num++;
