@@ -8,8 +8,8 @@
 #define buffer_size 1000
 #define producer_size 20
 #define consumer_size 30
-#define request_size 1000000
-#define WAIT_TIME_SECONDS       1
+#define request_size 100
+#define WAIT_TIME_SECONDS       5
 
 typedef struct thread_data
 {
@@ -75,13 +75,6 @@ int main()
 
     //set default value of circular_queue
     initial_buffer();
-
-    //Init Data
-
-    srand(time(NULL));
-    for(i = 0;i < 500;i++){
-    	template_data[i] = rand()*26 + 65;
-    }
 
     circular_queue.space_buffer = buffer_size;
 
@@ -185,15 +178,15 @@ void* append_buffer(void* temp_data)
 		pthread_mutex_lock(&mutex_producer);
 		if(temp_request_size-- > 0){
 		    //printf("Try Append\n");
-			if (circular_queue.space_buffer != 0)
+			if (circular_queue.space_buffer > 0)
 		       {
-		           printf("Append Success %d\n",temp_request_size);
+		           printf("Append Success %d\n",circular_queue.space_buffer);
 		           add_item(temp_data);
+                   pthread_cond_signal(&cond_not_empty);
 		           pthread_mutex_unlock(&mutex_producer);
-		           pthread_cond_signal(&cond_not_empty);
 		           num_a++;
 		       } else {
-		            printf("Append Failed Halt \n");
+		            //printf("Append Failed Halt \n");
 		       		ts.tv_sec  = tp.tv_sec;
 				    ts.tv_nsec = tp.tv_usec * 1000;
 				    ts.tv_sec += WAIT_TIME_SECONDS;
@@ -201,11 +194,12 @@ void* append_buffer(void* temp_data)
 		           	pthread_cond_wait(&cond_not_full, &mutex_producer);
 		           	if(return_code == ETIMEDOUT){
                         pthread_mutex_unlock(&mutex_producer);
-                        Sleep(10);
+                        Sleep(50);
 		           	}else{
+		           	    printf("Append Try Success %d\n",circular_queue.space_buffer);
                         add_item(temp_data);
-                        pthread_mutex_unlock(&mutex_producer);
                         pthread_cond_signal(&cond_not_empty);
+                        pthread_mutex_unlock(&mutex_producer);
                         num_a++;
 		           	}
 		       }
@@ -231,11 +225,10 @@ void* remove_buffer(void* temp_queue)
     	if(producer_num > 0){
     		if (circular_queue.space_buffer != buffer_size)
 	        {
-	            /*printf("remove, %d\n", num);*/
-	            //printf("Remove Success \n");
+	            printf("Remove Success %d\n",circular_queue.space_buffer);
 	            remove_item();
+                pthread_cond_signal(&cond_not_full);
 	            pthread_mutex_unlock(&mutex_consumer);
-	            pthread_cond_signal(&cond_not_full);
 	            num_r++;
 	        } else if(producer_num > 0){
                 ts.tv_sec  = tp.tv_sec;
@@ -243,17 +236,17 @@ void* remove_buffer(void* temp_queue)
                 ts.tv_sec += WAIT_TIME_SECONDS;
                 return_code = pthread_cond_timedwait(&cond_not_empty, &mutex_consumer, &ts);
                 pthread_cond_wait(&cond_not_empty, &mutex_consumer);
-                printf("signal rcv\n");
+                //printf("signal rcv\n");
                 if(return_code == ETIMEDOUT){
-                        printf("Timeout \n");
+                        //printf("Timeout \n");
                         pthread_mutex_unlock(&mutex_consumer);
                         fails_request++;
-                        Sleep(10);
+                        Sleep(50);
                 }else{
-                        printf("Remove q \n");
+                        //printf("Remove \n");
                         remove_item();
-                        pthread_mutex_unlock(&mutex_consumer);
                         pthread_cond_signal(&cond_not_full);
+                        pthread_mutex_unlock(&mutex_consumer);
                         num_r++;
                 }
 	        }
