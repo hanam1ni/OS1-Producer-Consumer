@@ -2,13 +2,14 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.05
+Version 1.08
 Developed by Micky & MrNonz & DragonKorn
 */
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>
-#include <windows.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 typedef struct thread_data
 {
@@ -179,7 +180,7 @@ void* append_buffer(void* temp_data)
         while(pthread_mutex_trylock(&mutex_producer) != 0)
         {
             try_time+=25;
-            Sleep(try_time);
+            usleep(try_time);
         }
 
         // CheckBuffer is not Full
@@ -220,7 +221,7 @@ void* remove_buffer(void* temp_queue)
         while(pthread_mutex_trylock(&mutex_consumer) != 0)
         {
             try_time+=25;
-            Sleep(try_time);
+            usleep(try_time);
         }
         // Check Buffer is not Empty
         //printf("Lock\n");
