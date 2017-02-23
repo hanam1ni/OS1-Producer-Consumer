@@ -8,8 +8,7 @@
 #define buffer_size 1000
 #define producer_size 20
 #define consumer_size 30
-#define request_size 10000000
-#define WAIT_TIME_SECONDS       5
+#define request_size 1000000
 
 typedef struct thread_data
 {
@@ -175,7 +174,7 @@ void* append_buffer(void* temp_data)
     int try_time = 0;
     while(1) {
         while(pthread_mutex_trylock(&mutex_producer) != 0){
-            try_time+=30;
+            try_time+=25;
             Sleep(try_time);
 		}
     	// CheckBuffer is not Full
@@ -210,7 +209,7 @@ void* remove_buffer(void* temp_queue)
     int try_time = 0;
     while(1){
         while(pthread_mutex_trylock(&mutex_consumer) != 0){
-            try_time+=30;
+            try_time+=25;
             Sleep(try_time);
 		}
     	// Check Buffer is not Empty
