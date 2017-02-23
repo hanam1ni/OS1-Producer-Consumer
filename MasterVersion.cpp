@@ -2,8 +2,8 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.02
-Develop by Micky & MrNonz & DragonKron
+Version 1.05
+Developed by Micky & MrNonz & DragonKorn
 */
 #include <stdio.h>
 #include <pthread.h>
@@ -33,7 +33,7 @@ thread_data circular_queue;
 pthread_mutex_t mutex_producer,mutex_consumer;
 
 long temp_request_size;
-long fails_append_request = 0;
+long fail_removed = 0;
 
 char template_data[500];
 
@@ -83,7 +83,7 @@ int main()
 
     append_per_thread = temp_request_size / producer_size;
 
-    printf("Start Benchmark Timer \n");
+    printf("\tStart Benchmark Timer : \n");
 
     // Start Clock
     start_time = clock();
@@ -121,17 +121,18 @@ int main()
     end_time = clock();
 
     elapsed = timediff(start_time, end_time);
-    printf("Elapsed: %ld s\n", elapsed/1000);
+
 
     // Clean up all of pthread.h lib and exit
     pthread_mutex_destroy(&mutex_producer);
     pthread_mutex_destroy(&mutex_consumer);
 
-    long success_request = request_size - fails_append_request;
+    long success_request = request_size - fail_removed;
     double throughput = (success_removed)/(double)(elapsed/1000.0);
 
-    printf("\tThroughput \t:\t %.2lf \tSuccessful Request/s", throughput);
-    printf("\nAppend: %ld , Remove: %ld , Failed: %ld , Total Request: %ld",success_appended,success_removed,fails_append_request,success_removed+fails_append_request);
+    printf("\tSuccessfullly Consumed \t:\t %ld\n",success_removed);
+    printf("\t\tElapsed \t:\t %.2lf s\n", (double)elapsed/1000.0);
+    printf("\t\tThroughput \t:\t %.2lf \tSuccessful Request/s", throughput);
 
     return 0;
 }
@@ -235,6 +236,7 @@ void* remove_buffer(void* temp_queue)
             else
             {
                 pthread_mutex_unlock(&mutex_consumer);
+                fail_removed++;
             }
         }
         else
