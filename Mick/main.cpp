@@ -5,17 +5,12 @@
 
 #include <windows.h>
 
-#define buffer_size 1000
-#define producer_size 20
-#define consumer_size 30
-#define request_size 1000000
-
 typedef struct thread_data
 {
     long head;
     long tail;
     long space_buffer;
-    char data_list[buffer_size];
+    char data_list[1000];
 }thread_data;
 
 //Prototype
@@ -33,7 +28,7 @@ thread_data circular_queue;
 pthread_mutex_t mutex_producer,mutex_consumer;
 pthread_cond_t cond_not_empty,cond_not_full;
 
-long temp_request_size = request_size;
+long temp_request_size;
 long fails_request = 0;
 
 char template_data[500];
@@ -41,11 +36,32 @@ int num = 0;
 long num_a = 0;
 long num_r = 0;
 
-int producer_num = producer_size;
+int producer_num;
 int consumer_num = 0;
-int main()
-{
 
+int buffer_size;
+int  producer_size;
+int consumer_size;
+long request_size;
+
+int main(int argc, char *argv[])
+{
+    if( argc == 5 ) {
+      producer_size = atoi(argv[1]);
+      consumer_size = atoi(argv[2]);
+      buffer_size = atoi(argv[3]);
+      request_size = atol(argv[4]);
+      producer_num = producer_size;
+      temp_request_size = request_size;
+   }
+   else if( argc > 2 ) {
+      printf("Too many arguments supplied.\n");
+      return 0;
+   }
+   else {
+      printf("One argument expected.\n");
+      return 0;
+   }
 	printf("Initializing...\n");
 
     clock_t t1, t2;
