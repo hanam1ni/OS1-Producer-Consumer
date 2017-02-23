@@ -2,7 +2,7 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.08
+Version 1.10
 Developed by Micky & MrNonz & DragonKorn
 */
 #include <stdio.h>
@@ -80,7 +80,7 @@ int main()
     printf("\nInitializing...\n");
     printf("Producers %d, Consumers %d\n", producer_size, consumer_size);
     printf("Buffer size %d\n", buffer_size);
-    printf("Requests %d\n\n", request_size);
+    printf("Requests %ld\n\n", request_size);
 
     append_per_thread = temp_request_size / producer_size;
 
