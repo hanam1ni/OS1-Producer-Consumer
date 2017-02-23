@@ -2,7 +2,7 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.01
+Version 1.02
 Develop by Micky & MrNonz & DragonKron
 */
 #include <stdio.h>
@@ -45,7 +45,9 @@ int producer_num = 0;
 int buffer_size;
 int producer_size;
 int consumer_size;
+
 long request_size;
+long append_per_thread;
 
 int main()
 {
@@ -78,6 +80,8 @@ int main()
     printf("Producers %d, Consumers %d\n", producer_size, consumer_size);
     printf("Buffer size %d\n", buffer_size);
     printf("Requests %d\n\n", request_size);
+
+    append_per_thread = temp_request_size / producer_size;
 
     printf("Start Benchmark Timer \n");
 
@@ -167,6 +171,7 @@ void remove_item()
 void* append_buffer(void* temp_data)
 {
     int try_time = 0;
+
     while(1)
     {
         try_time = 0;
@@ -201,6 +206,7 @@ void* append_buffer(void* temp_data)
         }
     }
     pthread_mutex_unlock(&mutex_producer);
+    //printf("Done\n");
     pthread_exit(NULL);
 }
 
