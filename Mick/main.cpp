@@ -55,11 +55,11 @@ int main(int argc, char *argv[])
       temp_request_size = request_size;
    }
    else if( argc > 2 ) {
-      printf("Too many arguments supplied.\n");
+      printf("Too many arguments.\n");
       return 0;
    }
    else {
-      printf("One argument expected.\n");
+      printf("Four argument expected.\n");
       return 0;
    }
 	printf("Initializing...\n");
