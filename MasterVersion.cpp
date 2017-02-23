@@ -2,7 +2,7 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.10
+Version 1.4
 Developed by Micky & MrNonz & DragonKorn
 */
 #include <stdio.h>
@@ -134,7 +134,6 @@ int main()
     printf("\tSuccessfullly Consumed \t:\t %ld (%.2lf%%)\n",success_removed,(double)(success_removed*100/request_size));
     printf("\t\tElapsed \t:\t %.2lf s\n", (double)elapsed/1000.0);
     printf("\t\tThroughput \t:\t %.2lf \tSuccessful Request/s\n", throughput);
-
     return 0;
 }
 
@@ -192,8 +191,8 @@ void* append_buffer(void* temp_data)
             {
                 //printf("Append Success %d\n",temp_request_size);
                 add_item(temp_data);
-                pthread_mutex_unlock(&mutex_producer);
                 success_appended++;
+                pthread_mutex_unlock(&mutex_producer);
             }
             else
             {
@@ -231,8 +230,9 @@ void* remove_buffer(void* temp_queue)
             {
                 //printf("Remove Success %d\n",temp_request_size);
                 remove_item();
-                pthread_mutex_unlock(&mutex_consumer);
                 success_removed++;
+                pthread_mutex_unlock(&mutex_consumer);
+
             }
             else
             {
