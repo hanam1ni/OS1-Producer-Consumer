@@ -251,8 +251,8 @@ void* remove_buffer(void* temp_queue)
     {
         pthread_mutex_lock(&mutex_consumer);
         remove_item();
-        pthread_mutex_unlock(&mutex_consumer);
         success_removed++;
+        pthread_mutex_unlock(&mutex_consumer);
     }
     pthread_exit(NULL);
 }
