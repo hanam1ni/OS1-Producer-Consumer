@@ -2,7 +2,7 @@
 This is program use for Assignment 1.
 OS in Computer Engineering of KMITL
 
-Version 1.4
+Version 1.59
 Developed by Micky & MrNonz & DragonKorn
 */
 #include <stdio.h>
@@ -10,7 +10,9 @@ Developed by Micky & MrNonz & DragonKorn
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <sys/time.h>
+#include <errno.h>
+#define WAIT_TIME_SECONDS   1
 typedef struct thread_data
 {
     long head;
@@ -31,7 +33,8 @@ void* remove_buffer(void*);
 long timediff(clock_t,clock_t);
 
 thread_data circular_queue;
-pthread_mutex_t mutex_producer,mutex_consumer;
+pthread_mutex_t mutex_for_lock_buffer_queue;
+pthread_cond_t condition_append,condition_remove;
 
 long temp_request_size;
 long fail_removed = 0;
@@ -55,6 +58,13 @@ int main()
     printf("Insert your Producer, Consumer, Buffer, Request\n\n");
     scanf("%d %d %d %ld", &producer_size, &consumer_size, &buffer_size, &request_size);
 
+    /*
+    producer_size = 20;
+    consumer_size = 20;
+    buffer_size = 1000;
+    request_size = 20000;
+    */
+
     producer_num = producer_size;
     temp_request_size = request_size;
     circular_queue.space_buffer = buffer_size;
@@ -71,8 +81,10 @@ int main()
     pthread_t consumer_threads[consumer_size];
 
     //Init mutex
-    pthread_mutex_init(&mutex_producer, NULL);
-    pthread_mutex_init(&mutex_consumer, NULL);
+    pthread_mutex_init(&mutex_for_lock_buffer_queue, NULL);
+
+    pthread_cond_init(&condition_append,NULL);
+    pthread_cond_init(&condition_remove,NULL);
 
     //set default value of circular_queue
     initial_buffer();
@@ -118,21 +130,15 @@ int main()
         pthread_join(consumer_threads[i], NULL);
     }
 
-    while(circular_queue.space_buffer < buffer_size)
-    {
-        remove_item();
-        success_removed++;
-    }
-
     // Stop Clock
     end_time = clock();
-
     elapsed = timediff(start_time, end_time);
 
-
     // Clean up all of pthread.h lib and exit
-    pthread_mutex_destroy(&mutex_producer);
-    pthread_mutex_destroy(&mutex_consumer);
+    pthread_mutex_destroy(&mutex_for_lock_buffer_queue);
+
+    pthread_cond_destroy(&condition_append);
+    pthread_cond_destroy(&condition_remove);
 
     long success_request = request_size - fail_removed;
     double throughput = (success_removed)/(double)(elapsed/1000.0);
@@ -153,9 +159,8 @@ void initial_buffer()
 void add_item(void* temp_data)
 {
     //Make sure you locked of Head
-    //circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
+    circular_queue.data_list[circular_queue.head++] = *(char*)temp_data;
 
-    circular_queue.head++;
     if (circular_queue.head == buffer_size)
     {
         circular_queue.head = 0;
@@ -166,8 +171,8 @@ void add_item(void* temp_data)
 void remove_item()
 {
     //Make sure you locked of Tail
+    circular_queue.data_list[circular_queue.tail++] = '\0';
 
-    circular_queue.tail++;
     if (circular_queue.tail == buffer_size)
     {
         circular_queue.tail = 0;
@@ -177,73 +182,107 @@ void remove_item()
 
 void* append_buffer(void* temp_data)
 {
-    int try_time = 0;
+    int               return_code;
+    struct timespec   time_spec;
+    struct timeval    time_value;
 
+    int try_time = 0;
     while(1)
     {
         try_time = 0;
-        while(pthread_mutex_trylock(&mutex_producer) != 0)
+        while(pthread_mutex_trylock(&mutex_for_lock_buffer_queue) != 0)
         {
             try_time+=25;
             usleep(try_time);
         }
 
         // CheckBuffer is not Full
-        //printf("Before Lock\n");
-        if(temp_request_size-- > 0)
+        if(temp_request_size > 0)
         {
-            //printf("Try Append\n");
+append_point:
             if (circular_queue.space_buffer > 0)
             {
-                //printf("Append Success %d\n",temp_request_size);
                 add_item(temp_data);
+
                 success_appended++;
-                pthread_mutex_unlock(&mutex_producer);
+                temp_request_size--;
+
+                pthread_cond_signal(&condition_remove);
+                pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
             }
             else
             {
-                pthread_mutex_unlock(&mutex_producer);
+                time_spec.tv_sec  = time_value.tv_sec;
+                time_spec.tv_nsec = time_value.tv_usec * 1000;
+                time_spec.tv_sec += WAIT_TIME_SECONDS;
+
+                return_code = pthread_cond_timedwait(&condition_append,&mutex_for_lock_buffer_queue,&time_spec);
+
+                if(return_code == ETIMEDOUT)
+                {
+                    pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
+                }
+                else
+                {
+                    goto append_point;
+                }
             }
         }
         else
         {
             producer_num--;
-            //printf("%d\n",producer_num);
             break;
         }
     }
-    pthread_mutex_unlock(&mutex_producer);
-    //printf("Done\n");
+
+    pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
     pthread_exit(NULL);
 }
 
 void* remove_buffer(void* temp_queue)
 {
+    int               return_code;
+    struct timespec   time_spec;
+    struct timeval    time_value;
+
     int try_time = 0;
     while(1)
     {
         try_time = 0;
-        while(pthread_mutex_trylock(&mutex_consumer) != 0)
+        while(pthread_mutex_trylock(&mutex_for_lock_buffer_queue) != 0)
         {
             try_time+=25;
             usleep(try_time);
         }
+
         // Check Buffer is not Empty
-        //printf("Lock\n");
-        if(producer_num > 0)
+        if(success_removed < request_size)
         {
-            if(circular_queue.space_buffer != buffer_size)
+remove_point:
+            if(circular_queue.space_buffer < buffer_size)
             {
-                //printf("Remove Success %d\n",temp_request_size);
                 remove_item();
                 success_removed++;
-                pthread_mutex_unlock(&mutex_consumer);
 
+                pthread_cond_signal(&condition_append);
+                pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
             }
             else
             {
-                fail_removed++;
-                pthread_mutex_unlock(&mutex_consumer);
+                time_spec.tv_sec  = time_value.tv_sec;
+                time_spec.tv_nsec = time_value.tv_usec * 1000;
+                time_spec.tv_sec += WAIT_TIME_SECONDS;
+
+                return_code = pthread_cond_timedwait(&condition_remove,&mutex_for_lock_buffer_queue,&time_spec);
+                if(return_code == ETIMEDOUT)
+                {
+                    pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
+                }
+                else
+                {
+                    goto remove_point;
+                }
+
             }
         }
         else
@@ -251,21 +290,8 @@ void* remove_buffer(void* temp_queue)
             break;
         }
     }
-    pthread_mutex_unlock(&mutex_consumer);
 
-    /*
-    pthread_mutex_lock(&mutex_consumer);
-    pthread_mutex_lock(&mutex_producer);
-
-    while(circular_queue.space_buffer < buffer_size)
-    {
-        circular_queue.space_buffer--;
-        success_removed++;
-    }
-
-    pthread_mutex_unlock(&mutex_producer);
-    pthread_mutex_unlock(&mutex_consumer);
-    */
+    pthread_mutex_unlock(&mutex_for_lock_buffer_queue);
     pthread_exit(NULL);
 }
 
