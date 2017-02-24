@@ -118,6 +118,12 @@ int main()
         pthread_join(consumer_threads[i], NULL);
     }
 
+    while(circular_queue.space_buffer < buffer_size)
+    {
+        remove_item();
+        success_removed++;
+    }
+
     // Stop Clock
     end_time = clock();
 
@@ -236,8 +242,8 @@ void* remove_buffer(void* temp_queue)
             }
             else
             {
-                pthread_mutex_unlock(&mutex_consumer);
                 fail_removed++;
+                pthread_mutex_unlock(&mutex_consumer);
             }
         }
         else
@@ -247,14 +253,19 @@ void* remove_buffer(void* temp_queue)
     }
     pthread_mutex_unlock(&mutex_consumer);
 
+    /*
     pthread_mutex_lock(&mutex_consumer);
+    pthread_mutex_lock(&mutex_producer);
+
     while(circular_queue.space_buffer < buffer_size)
     {
-        remove_item();
+        circular_queue.space_buffer--;
         success_removed++;
     }
 
+    pthread_mutex_unlock(&mutex_producer);
     pthread_mutex_unlock(&mutex_consumer);
+    */
     pthread_exit(NULL);
 }
 
