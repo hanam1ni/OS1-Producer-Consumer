@@ -247,13 +247,14 @@ void* remove_buffer(void* temp_queue)
     }
     pthread_mutex_unlock(&mutex_consumer);
 
+    pthread_mutex_lock(&mutex_consumer);
     while(circular_queue.space_buffer < buffer_size)
     {
-        pthread_mutex_lock(&mutex_consumer);
         remove_item();
         success_removed++;
-        pthread_mutex_unlock(&mutex_consumer);
     }
+
+    pthread_mutex_unlock(&mutex_consumer);
     pthread_exit(NULL);
 }
 
