@@ -30,7 +30,7 @@ void remove_item();
 void* append_buffer(void*);
 void* remove_buffer(void*);
 
-long timediff(clock_t,clock_t);
+int timeval_subtract(struct timeval*, struct timeval*, struct timeval*);
 
 thread_data circular_queue;
 pthread_mutex_t mutex_for_lock_buffer_queue;
@@ -53,24 +53,24 @@ int consumer_size;
 long request_size;
 long append_per_thread;
 
+double elapsed_time;
+
 int main()
 {
     printf("Insert your Producer, Consumer, Buffer, Request\n\n");
     scanf("%d %d %d %ld", &producer_size, &consumer_size, &buffer_size, &request_size);
-
     /*
     producer_size = 20;
     consumer_size = 20;
     buffer_size = 1000;
-    request_size = 20000;
+    request_size = 20000000;
     */
 
     producer_num = producer_size;
     temp_request_size = request_size;
     circular_queue.space_buffer = buffer_size;
 
-    clock_t start_time, end_time;
-    long elapsed;
+    struct timeval tvBegin, tvEnd, tvDiff;
 
     int i,return_code;
     char *temp_char_data = (char*)malloc(sizeof(*temp_char_data));
@@ -99,7 +99,7 @@ int main()
     printf("\tStart Benchmark Timer : \n");
 
     // Start Clock
-    start_time = clock();
+    gettimeofday(&tvBegin, NULL);
 
     for (i = 0; i < producer_size; i++)
     {
@@ -131,8 +131,8 @@ int main()
     }
 
     // Stop Clock
-    end_time = clock();
-    elapsed = timediff(start_time, end_time);
+    gettimeofday(&tvEnd, NULL);
+    timeval_subtract(&tvDiff, &tvEnd, &tvBegin);
 
     // Clean up all of pthread.h lib and exit
     pthread_mutex_destroy(&mutex_for_lock_buffer_queue);
@@ -140,11 +140,13 @@ int main()
     pthread_cond_destroy(&condition_append);
     pthread_cond_destroy(&condition_remove);
 
+    elapsed_time = tvDiff.tv_sec + (double)(tvDiff.tv_usec/1000000.0);
+
     long success_request = request_size - fail_removed;
-    double throughput = (success_removed)/(double)(elapsed/1000.0);
+    double throughput = (success_removed)/elapsed_time;
 
     printf("\tSuccessfullly Consumed \t:\t %ld (%.2lf%%)\n",success_removed,(double)(success_removed*100/request_size));
-    printf("\t\tElapsed \t:\t %.2lf s\n", (double)elapsed/1000.0);
+    printf("\t\tElapsed \t:\t %ld.%06ld s\n", tvDiff.tv_sec, tvDiff.tv_usec);
     printf("\t\tThroughput \t:\t %.2lf \tSuccessful Request/s\n", throughput);
     return 0;
 }
@@ -295,9 +297,11 @@ remove_point:
     pthread_exit(NULL);
 }
 
-long timediff(clock_t start_time, clock_t end_time)
+int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval *t1)
 {
-    long elapsed;
-    elapsed = ((double)end_time - start_time) / CLOCKS_PER_SEC * 1000;
-    return elapsed;
+    long int diff = (t2->tv_usec + 1000000 * t2->tv_sec) - (t1->tv_usec + 1000000 * t1->tv_sec);
+    result->tv_sec = diff / 1000000;
+    result->tv_usec = diff % 1000000;
+
+    return (diff<0);
 }
